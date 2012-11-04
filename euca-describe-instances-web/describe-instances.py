@@ -9,10 +9,38 @@ class DescribeInstances:
     rawoutput = None
     xmloutput = None
     xml2dict = None
-    instances = {}
+    platform = None
 
-    def read_from_cmd(self):
-        run_euca_describe_instances = [ "euca-describe-instances", "verbose", "--config", "/home/hyungro/.futuregrid/eucalyptus/admin/eucarc", "--debug"]
+    def list_instances(self):
+        res1 = self.list_eucalyptus()
+        res2 = self.list_openstack()
+        res = res1 + res2
+        
+        return res
+
+    def list_eucalyptus(self):
+        self.platform = "eucalyptus"
+        self.read_from_cmd([ "euca-describe-instances", "verbose", "--config", "/home/hyungro/.futuregrid/eucalyptus/admin/eucarc", "--debug"])
+        self.convert_to_dict_from_xml()
+        return self.display()
+
+    def list_openstack(self):
+        return ""
+        self.platform = "openstack"
+        self.read_from_cmd([ "euca-describe-instances", "verbose", "--config", "/home/hyungro/.futuregrid/openstack/novarc", "--debug"])
+        self.convert_to_dict_from_xml()
+        return self.display()
+
+    def display(self):
+        #for i in self.xml2dict.iteritems():
+        #    print i
+        res = "<h1>"+self.platform.title()+"</h1>"
+        res = res + "<table border=1>"+self.print_ins(self.xml2dict)+"</table>"
+#        print res
+        return res
+
+    def read_from_cmd(self, cmd):
+        run_euca_describe_instances = cmd
         self.rawoutput = subprocess.check_output(run_euca_describe_instances, stderr=subprocess.STDOUT).splitlines()
 
         for line in self.rawoutput:
@@ -88,17 +116,29 @@ class DescribeInstances:
                 (?P<ins_launch_time>[\dT:+-Z]+)\s+(?P<availability_zone>[\w-]+)\s+(?P<kernel_id>[\w-]+)\s+(?P<ramdisk_id>[\w-]+)\s+(?P<monitoring_state>[\w-]+)\s+(?P<public_ip>[\d.]+)\s+\
                 (?P<private_ip>[\d.]+)\s+(?P<tenancy>[\w-]+)\s+(?P<vir_type>\w+)\s+(?P<hyper_type>\w+)', re.M|re.I)
 
-    def list_instances(self):
-        self.read_from_cmd()
-        self.convert_to_dict_from_xml()
+    def print_ins(self, dictionary, ident = '', braces=1):
+        all_msg = ""
+        for key, value in dictionary.iteritems():
+            msg = ""
+            if isinstance(value, dict):
+                #msg = '%s%s%s%s' %(ident,braces*'[',key,braces*']') 
+                if braces == 2:
+                    msg = "<tr>"
+                msg = msg + self.print_ins(value, ident+'  ', braces+1)
+            else:
+                msg = '%s' %(value)
+                msg = "<td>" + msg + "</td>"
+            all_msg = all_msg + msg
 
-    def print_dict(dictionary, ident = '', braces=1):
+        return all_msg
+
+    def print_dict(self, dictionary, ident = '', braces=1):
         """ Recursively prints nested dictionaries."""
 
         for key, value in dictionary.iteritems():
             if isinstance(value, dict):
                 print '%s%s%s%s' %(ident,braces*'[',key,braces*']') 
-                print_dict(value, ident+'  ', braces+1)
+                self.print_dict(value, ident+'  ', braces+1)
             else:
                 print ident+'%s = %s' %(key, value)
 
@@ -117,9 +157,13 @@ class DescribeInstancesWeb(object):
         return self.ins.list_instances()
 
     index.exposed = True
+    list.exposed = True
 
 if len(sys.argv) > 1 and sys.argv[1] == "cmd":
     obj = DescribeInstances()
     obj.list_instances()
 else:
+    cherrypy.config.update({'server.socket_host': '129.79.49.179',
+        'server.socket_port': 8080,
+        })
     cherrypy.quickstart(DescribeInstancesWeb())
