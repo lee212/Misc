@@ -4,12 +4,19 @@ import sys
 import re
 import Xml2Dict
 
+import Userinfo
+
 class DescribeInstances:
 
     rawoutput = None
     xmloutput = None
     xml2dict = None
     platform = None
+
+    userinfo = None
+
+    def __init__(self):
+        self.userinfo = Userinfo.Userinfo()
 
     def list_instances(self):
         res1 = self.list_eucalyptus()
@@ -160,11 +167,15 @@ class DescribeInstancesWeb(object):
     index.exposed = True
     list.exposed = True
 
-if len(sys.argv) > 1 and sys.argv[1] == "cmd":
-    obj = DescribeInstances()
-    obj.list_instances()
-else:
-    cherrypy.config.update({'server.socket_host': '129.79.49.179',
-        'server.socket_port': 8080,
-        })
-    cherrypy.quickstart(DescribeInstancesWeb())
+def main():
+    if len(sys.argv) > 1 and sys.argv[1] == "cmd":
+        obj = DescribeInstances()
+        obj.list_instances()
+    else:
+        cherrypy.config.update({'server.socket_host': '129.79.49.179',
+            'server.socket_port': 8080,
+            })
+        cherrypy.quickstart(DescribeInstancesWeb())
+
+if __name__ == "__main__":
+    main()
