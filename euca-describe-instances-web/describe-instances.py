@@ -34,8 +34,10 @@ class DescribeInstances:
     def display(self):
         #for i in self.xml2dict.iteritems():
         #    print i
+        header = "<td>ownerId<td>groupId<td>reservationId<td>productCodes<td>blockDeviceMapping<td>availabilityZone<td>ipAddress<td>instanceId<td>code<td>name<td>state<td>keyName<td>imageId<td>privateDnsName<td>reason<td>dnsName<td>launchTime<td>rootDeviceType<td>rootDeviceName<td>kernelId<td>ramdiskId<td>amiLaunchIndex<td>instanceType<td>privateIpAddress"
+
         res = "<h1>"+self.platform.title()+"</h1>"
-        res = res + "<table border=1>"+self.print_ins(self.xml2dict)+"</table>"
+        res = res + "<table border=1>"+ header + self.print_ins(self.xml2dict)+"</table>"
 #        print res
         return res
 
@@ -126,8 +128,7 @@ class DescribeInstances:
                     msg = "<tr>"
                 msg = msg + self.print_ins(value, ident+'  ', braces+1)
             else:
-                msg = '%s' %(value)
-                msg = "<td>" + msg + "</td>"
+                msg = "<td>" + str(value) + "</td>"
             all_msg = all_msg + msg
 
         return all_msg
