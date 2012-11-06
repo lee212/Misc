@@ -26,6 +26,7 @@ class DescribeInstances:
     def init_stats(self):
         self.stats = { "1. Total":0, "2. Groups": 0, "3. Users":0, "5. Running VMs":0,  "4. Pending VMs":0, "7. Terminated VMs":0, "6. Shutting-down VMs":0}
         self.stats_internal = { "users": {}, "groups": {}}
+        self.fail_cmd = False
 
     def list_instances(self):
         res1 = self.list_eucalyptus()
@@ -60,6 +61,8 @@ class DescribeInstances:
 
     def display(self):
         title = self.display_title()
+        if self.fail_cmd:
+            return title 
         table = self.display_table()
         stats = self.display_stats() 
         return title + stats + "<br><br>" + table
@@ -143,8 +146,12 @@ class DescribeInstances:
         return res
 
     def read_from_cmd(self, cmd):
-        run_euca_describe_instances = cmd
-        self.rawoutput = subprocess.check_output(run_euca_describe_instances, stderr=subprocess.STDOUT).splitlines()
+        try:
+            self.rawoutput = subprocess.check_output(cmd, stderr=subprocess.STDOUT).splitlines()
+        except:
+            self.fail_cmd = True
+            print sys.exc_info
+            return
 
         for line in self.rawoutput:
             if re.search("DescribeInstancesResponse", line):
