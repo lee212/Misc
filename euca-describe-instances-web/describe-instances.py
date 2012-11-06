@@ -19,8 +19,7 @@ class DescribeInstances:
     stats_internal = None
 
     def __init__(self):
-        self.userinfo= None
-        #self.userinfo = Userinfo.Userinfo()
+        self.userinfo = Userinfo.Userinfo()
         self.init_stats()
 
     def init_stats(self):
@@ -28,36 +27,75 @@ class DescribeInstances:
         self.stats_internal = { "users": {}, "groups": {}}
         self.fail_cmd = False
 
+    def get(self, obj):
+        accumulated = {}
+        self.set_search(obj)
+        self.read_from_cmd() # set xmloutput
+        self.convert_xml_to_dict() # set xml2dict
+        instance_ids = self.get_val("instanceId", self.xml2dict)
+        print instance_ids
+        owner_ids = self.userinfo.get_ownerId(instance_ids)
+        print owner_ids
+        for owner_id in owner_ids:
+            owner_name = self.userinfo.convert_ownerId_str(owner_id)
+            self.calculate_metric(obj["metric"], owner_name, accumulated)
+
+        print accumulated 
+        return accumulated
+
+    def calculate_metric(operator, record, data, init_value=1):
+        if record in data:
+            data[record] = init_value
+        else:
+            if operator == "count":
+                data[record] += 1
+
+    def set_search(self, obj):
+        self.platform = obj["platform"]
+        self.hostname = obj["nodename"]
+
     def list_instances(self):
         res1 = self.list_eucalyptus()
         self.init_stats()
         res11 = self.list_eucalyptus_2()
         self.init_stats()
         res2 = self.list_openstack()
-        res = self.header() + res1 + res11 + res2 + self.tail()
+        res = self.header() + str(res1) + str(res11) + str(res2) + self.tail()
         
         return res
 
     def list_eucalyptus(self):
         self.platform = "eucalyptus"
         self.hostname = "india"
-        self.read_from_cmd([ "euca-describe-instances", "verbose", "--config", "/home/hyungro/.futuregrid/eucalyptus/admin/eucarc", "--debug"])
-        self.convert_to_dict_from_xml()
+        self.read_from_cmd()
+        self.convert_xml_to_dict()
         return self.display()
     
     def list_eucalyptus_2(self):
         self.platform = "eucalyptus"
         self.hostname = "sierra"
-        self.read_from_cmd([ "euca-describe-instances", "verbose", "--config", "/home/hyungro/.futuregrid/eucalyptus/sierra/admin/eucarc", "--debug"])
-        self.convert_to_dict_from_xml()
+        self.read_from_cmd()
+        self.convert_xml_to_dict()
         return self.display()
 
     def list_openstack(self):
         self.platform = "openstack"
         self.hostname = "india"
-        self.read_from_cmd([ "euca-describe-instances", "--config", "/home/hyungro/.futuregrid/openstack/novarc", "--debug"])
-        self.convert_to_dict_from_xml()
+        self.read_from_cmd()
+        self.convert_xml_to_dict()
         return self.display()
+
+    def get_val(self, keyname, data):
+        val_list = []
+        print data
+        for key, val in data.iteritems():
+            print key, val
+            if isinstance(val, dict):
+                val_list.extend(self.get_val(keyname, val))
+            else:
+                if key == keyname:
+                    val_list.append(val)
+        return val_list
 
     def display(self):
         title = self.display_title()
@@ -145,7 +183,29 @@ class DescribeInstances:
         res = res + "<table border=1>"+ header + self.print_ins(self.xml2dict)+"</table>"
         return res
 
-    def read_from_cmd(self, cmd):
+    def get_cmd(self):
+        cmd = ["euca-describe-instances", "verbose", "--debug"]
+        if self.platform == "eucalyptus":
+            if self.hostname == "india":
+                cmd.extend(["--config", "/home/hyungro/.futuregrid/eucalyptus/admin/eucarc"])
+            elif self.hostname == "sierra":
+                cmd.extend(["--config", "/home/hyungro/.futuregrid/eucalyptus/sierra/admin/eucarc"])
+        elif self.platform == "openstack":
+            if self.hostname == "india":
+                cmd.extend(["--config", "/home/hyungro/.futuregrid/openstack/novarc"])
+
+        return cmd
+
+    def list_openstack(self):
+        self.platform = "openstack"
+        self.hostname = "india"
+        self.read_from_cmd([ "euca-describe-instances", "--config", "/home/hyungro/.futuregrid/openstack/novarc", "--debug"])
+ 
+    def read_from_cmd(self, cmd=None):
+
+        if not cmd:
+            cmd = self.get_cmd()
+
         try:
             self.rawoutput = subprocess.check_output(cmd, stderr=subprocess.STDOUT).splitlines()
         except:
@@ -158,7 +218,7 @@ class DescribeInstances:
                 self.xmloutput = line.split("[DEBUG]:")[1]
                 break
 
-    def convert_to_dict_from_xml(self):
+    def convert_xml_to_dict(self):
         xml2dict = Xml2Dict.Xml2Dict(self.xmloutput)
         self.xml2dict = xml2dict.parse()
 
@@ -267,8 +327,29 @@ class DescribeInstancesWeb(object):
     def list(self):
         return self.ins.list_instances()
 
+    def count(self):
+        return
+
+    def count_vms_user_india_euca(self):
+        return self.ins.get({"metric":"count", \
+                "item":"vm", \
+                "group":"user",\
+                "nodename":"india",\
+                "platform":"eucalyptus"})
+
+    @cherrypy.expose
+    @tools.json_out()
+    def count_vms_user_sierra_euca(self):
+        return self.ins.get({"metric":"count", \
+                "item":"vm", \
+                "group":"user",\
+                "nodename":"sierra",\
+                "platform":"eucalyptus"})
+
     index.exposed = True
     list.exposed = True
+    count_vms_user_india_euca.exposed = True
+    count_vms_user_sierra_euca.exposed = True
 
 def main():
     if len(sys.argv) > 1 and sys.argv[1] == "cmd":
