@@ -1,10 +1,13 @@
+import webbrowser
 import cherrypy
 import subprocess
 import sys
 import re
+from collections import OrderedDict
 import Xml2Dict
 
 import Userinfo
+
 
 class DescribeInstances:
 
@@ -33,18 +36,15 @@ class DescribeInstances:
         self.read_from_cmd() # set xmloutput
         self.convert_xml_to_dict() # set xml2dict
         instance_ids = self.get_val("instanceId", self.xml2dict)
-        print instance_ids
         owner_ids = self.userinfo.get_ownerId(instance_ids)
-        print owner_ids
         for owner_id in owner_ids:
-            owner_name = self.userinfo.convert_ownerId_str(owner_id)
+            owner_name = self.userinfo.convert_ownerId_str(owner_id['ownerId'])
             self.calculate_metric(obj["metric"], owner_name, accumulated)
 
-        print accumulated 
         return accumulated
 
-    def calculate_metric(operator, record, data, init_value=1):
-        if record in data:
+    def calculate_metric(self, operator, record, data, init_value=1):
+        if not record in data:
             data[record] = init_value
         else:
             if operator == "count":
@@ -87,9 +87,7 @@ class DescribeInstances:
 
     def get_val(self, keyname, data):
         val_list = []
-        print data
         for key, val in data.iteritems():
-            print key, val
             if isinstance(val, dict):
                 val_list.extend(self.get_val(keyname, val))
             else:
@@ -330,15 +328,19 @@ class DescribeInstancesWeb(object):
     def count(self):
         return
 
+    @cherrypy.expose
+    @cherrypy.tools.json_out()
     def count_vms_user_india_euca(self):
-        return self.ins.get({"metric":"count", \
+        res = self.ins.get({"metric":"count", \
                 "item":"vm", \
                 "group":"user",\
                 "nodename":"india",\
                 "platform":"eucalyptus"})
+        sorted_res = OrderedDict(sorted(res.items(), key=lambda t: t[0]))
+        return sorted_res
 
     @cherrypy.expose
-    @tools.json_out()
+    @cherrypy.tools.json_out()
     def count_vms_user_sierra_euca(self):
         return self.ins.get({"metric":"count", \
                 "item":"vm", \
@@ -356,10 +358,18 @@ def main():
         obj = DescribeInstances()
         obj.list_instances()
     else:
-        cherrypy.config.update({'server.socket_host': '129.79.49.179',
-            'server.socket_port': 8080,
-            })
-        cherrypy.quickstart(DescribeInstancesWeb())
+        cherrypy.tree.mount(DescribeInstancesWeb())
+        cherrypy.engine.start(blocking=False)
+        cherrypy.server.socket_port = 8765
+        errypy.server.quickstart()
+        webbrowser.open("http://192.79.49.179:8765")
+        cherrypy.engine.block()
+        # CherryPy autoreload must be disabled for the flup server to work
+        #cherrypy.config.update({'engine.autoreload_on':False})
+        #cherrypy.config.update({'server.socket_host': '129.79.49.179',
+        #    'server.socket_port': 8080,
+        #    })
+        #cherrypy.quickstart(DescribeInstancesWeb())
 
 if __name__ == "__main__":
     main()
