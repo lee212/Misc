@@ -4,8 +4,8 @@ import sys
 import re
 from collections import OrderedDict
 import Xml2Dict
-
 import Userinfo
+import MySQLdb
 
 
 class DescribeInstances:
@@ -37,7 +37,7 @@ class DescribeInstances:
         instance_ids = self.get_val("instanceId", self.xml2dict)
         owner_ids = self.userinfo.get_ownerId(instance_ids)
         for owner_id in owner_ids:
-            owner_name = self.userinfo.convert_ownerId_str(owner_id['ownerId'])
+            owner_name = "".join(owner_id) #self.userinfo.convert_ownerId_str(owner_id['ownerId'])
             self.calculate_metric(obj["metric"], owner_name, accumulated)
 
         return accumulated
@@ -349,6 +349,9 @@ class DescribeInstancesWeb(object):
     count_vms_user_india_euca.exposed = True
     count_vms_user_sierra_euca.exposed = True
 
+def connect(thread_index):
+    cherrypy.thread_data.db = MySQLdb.connect('suzie.futuregrid.org', 'hrlee', 'AeT2W8Rh', 'cloudmetrics')
+
 def main():
     if len(sys.argv) > 1 and sys.argv[1] == "cmd":
         obj = DescribeInstances()
@@ -364,7 +367,9 @@ def main():
         #cherrypy.config.update({'engine.autoreload_on':False})
         cherrypy.config.update({'server.socket_host': '129.79.49.179',
             'server.socket_port': 8080,
+        #    'server.thread_pool': 10,
             })
+        cherrypy.engine.subscribe('start_thread', connect)
         cherrypy.quickstart(DescribeInstancesWeb())
 
 if __name__ == "__main__":
