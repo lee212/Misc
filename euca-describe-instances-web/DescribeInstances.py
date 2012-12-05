@@ -15,6 +15,7 @@ class DescribeInstances:
     xml2dict = None
     platform = None
     hostname = None
+    search_dict = None
 
     userinfo = None
     stats = None
@@ -34,7 +35,7 @@ class DescribeInstances:
         self.set_search(obj)
         self.read_from_cmd() # set xmloutput
         self.convert_xml_to_dict() # set xml2dict
-        instance_ids = self.get_val("instanceId", self.xml2dict)
+        instance_ids = self.get_val("instanceId", self.xml2dict, self.search_dict)
         owner_ids = self.userinfo.get_ownerId(instance_ids)
         for owner_id in owner_ids:
             owner_name = "".join(owner_id) #self.userinfo.convert_ownerId_str(owner_id['ownerId'])
@@ -52,6 +53,7 @@ class DescribeInstances:
     def set_search(self, obj):
         self.platform = obj["platform"]
         self.hostname = obj["nodename"]
+        self.search_dict = obj["search"]
 
     def list_instances(self):
         res1 = self.list_eucalyptus()
@@ -84,11 +86,16 @@ class DescribeInstances:
         self.convert_xml_to_dict()
         return self.display()
 
-    def get_val(self, keyname, data):
+    def get_val(self, keyname, data, search_dict=None):
         val_list = []
+        if search_dict:
+            for search_item in search_dict.keys():
+                if search_item in data and data[search_item] != search_dict[search_item]:
+                    return val_list
+
         for key, val in data.iteritems():
             if isinstance(val, dict):
-                val_list.extend(self.get_val(keyname, val))
+                val_list.extend(self.get_val(keyname, val, search_dict))
             else:
                 if key == keyname:
                     val_list.append(val)
@@ -121,7 +128,7 @@ class DescribeInstances:
     def count_stats(self, k, v):
         if k == "ownerId":
             self.stats["1. Total"] += 1
-        if k == "name":
+        elif k == "name":
             if v == "running":
                 self.stats["5. Running VMs"] += 1
             elif v == "terminated":
@@ -131,7 +138,7 @@ class DescribeInstances:
             elif v == "shutting-down":
                 self.stats["6. Shutting-down VMs"] += 1
 
-        if k == "keyName":
+        elif k == "keyName":
             if v in self.stats_internal["users"]:
                 self.stats_internal["users"][v] += 1
             else:
@@ -330,7 +337,8 @@ class DescribeInstancesWeb(object):
                 "item":"vm", \
                 "group":"user",\
                 "nodename":"india",\
-                "platform":"eucalyptus"})
+                "platform":"eucalyptus",\
+                "search" : {'instanceState': {'code': '16', 'name': 'running'}}})
         return res
         #sorted_res = OrderedDict(sorted(res.items(), key=lambda t: t[0]))
         #return sorted_res
@@ -342,7 +350,8 @@ class DescribeInstancesWeb(object):
                 "item":"vm", \
                 "group":"user",\
                 "nodename":"sierra",\
-                "platform":"eucalyptus"})
+                "platform":"eucalyptus",\
+                "search" : {'instanceState': {'code': '16', 'name': 'running'}}})
 
     index.exposed = True
     list.exposed = True
