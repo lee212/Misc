@@ -19,14 +19,19 @@ class Xml2Dict:
         if len(msg) == 0:
             return msg.text
         res = {}
+        item_cnt = 0
         for a in msg:
             key = self.remove_xmlns(a.tag)
             if key == "item":
                 if depth == 1:
                     key = count
-                    count=count+1
+                    count = count + 1
+
+            if key in res:
+                key = key + str(item_cnt)
+                item_cnt += 1
                     
-            res[key] = self._parse(a, depth+1, count)
+            res[key] = self._parse(a, depth + 1, count)
         return res
 
     def remove_xmlns(self, msg):
