@@ -56,6 +56,7 @@ class DescribeInstances:
         self.search_dict = obj["search"]
 
     def list_instances(self):
+        self.init_stats()
         res1 = self.list_eucalyptus()
         self.init_stats()
         res11 = self.list_eucalyptus_2()
