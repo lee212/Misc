@@ -3,6 +3,8 @@
 SOURCE_DIR=/home/hyungro/fg/fg-github/clone/cloud-metrics/results/build/html/results
 DESTINATION_DIR=$SOURCE_DIR/pdf
 
+mkdir $DESTINATION_DIR
+
 for file in `ls $SOURCE_DIR/*Q*.html`
 do
 	filename=$(basename "$file")
@@ -19,5 +21,7 @@ do
 
 	# Be ready to upload
 	mv output.pdf $pdf_filename
+
+	mv $pdf_filename $DESTINATION_DIR
 
 done
